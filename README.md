@@ -5,7 +5,7 @@
 -->
 ## Minesweeper game
 
-[Experience] (https://theajack.github.io/minesweeper/)
+[Experience](https://theajack.github.io/minesweeper/)
 
 ### Install and use
 
