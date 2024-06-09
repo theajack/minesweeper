@@ -24,7 +24,7 @@ function buildBaseConfig ({
         bundle: true,
         sourcemap: true,
         format: 'cjs',
-        globalName: 'EbuildDemo',
+        globalName: 'Minesweeper',
         platform: 'browser',
         // plugins:
         //   format === 'cjs' || pkg.buildOptions?.enableNonBrowserBranches

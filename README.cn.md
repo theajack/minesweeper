@@ -3,20 +3,41 @@
  * @Date: 2022-08-03 21:24:33
  * @Description: Coding something
 -->
-## ebuild-template-rollup
+## 扫雷游戏
 
-[ebuild-cli](https://github.com/theajack/ebuild-template-rollup)
+[体验](https://theajack.github.io/minesweeper/)
 
-## quickstart
-
-```
-npm i -g pnpm lerna
-```
+### 安装使用
 
 ```
-pnpm i
+npm i minesweeper-game
+```
 
-pnpm run dev
+```js
+import {Map} from 'minesweeper-game';
 
-pnpm run publish -- x.x.x
+const map = new Map();
+```
+
+Reset Map
+
+```js
+map.reset();
+```
+
+ts 声明
+
+```ts
+interface IMapOptions {
+    width?: number; // Map size
+    height?: number;
+    tileSize?: number; // Tile size
+    minesCount?: number;
+    container?: HTMLElement | string;
+}
+declare class Map {
+    constructor(options?: IMapOptions);
+    config({ width, height, tileSize, minesCount, container, }?: IMapOptions, reset?: boolean): void;
+    reset(): void;
+}
 ```

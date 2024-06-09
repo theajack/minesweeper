@@ -57,24 +57,12 @@ export class Map {
 
     private isOver: boolean = false;
 
-    constructor ({
-        width = 20,
-        height = 20,
-        tileSize = 20,
-        minesCount = 40,
-        container = document.body,
-    }: IMapOptions = {}) {
-
-
-        if (minesCount >= width * height) {
-            throw new Error('Too many mines');
-        }
-        this.options = {
-            width, height, tileSize, minesCount,
-            container: (typeof container === 'string') ? document.querySelector(container)! : container
-        };
+    constructor (options: IMapOptions = {}) {
 
         this.initDom();
+
+        this.config(options, false);
+
         this.initMapData();
         this.renderMap();
 
@@ -82,38 +70,9 @@ export class Map {
         window.map = this;
     }
 
-    reset () {
-        this.isOver = false;
-
-        this.initMapData();
-        this.renderMap();
-    }
-
     private initDom () {
-        // 初始化dom
-        const {width, height, tileSize, container} = this.options;
         this.canvas = document.createElement('canvas');
-        const w = width * tileSize;
-        const h = height * tileSize;
-        this.canvas.width = w * this.dpr;
-        this.canvas.height = h * this.dpr;
-        this.canvas.style.width = `${w}px`;
-        this.canvas.style.height = `${h}px`;
         this.canvas.style.border = '1px solid #ccc';
-        this.ctx = this.canvas.getContext('2d')!;
-        this.ctx.strokeStyle = '#444';
-        this.ctx.textBaseline = 'top';
-        this.ctx.fillStyle = '#444';
-        this.ctx.font = `${this.fontSize * this.dpr}px Monospace`;
-        container.appendChild(this.canvas);
-
-        const data = this.ctx.measureText('0');
-        const TileSize = tileSize * this.dpr;
-        this.Size = {
-            TileLeft: (TileSize - data.width) / 2,
-            TileTop: (TileSize - data.actualBoundingBoxDescent) / 2,
-            TileSize,
-        };
 
         let timer: any;
         let prev = -1;
@@ -143,9 +102,67 @@ export class Map {
         });
     }
 
+    config ({
+        width = 20,
+        height = 20,
+        tileSize = 20,
+        minesCount = 40,
+        container = document.body,
+    }: IMapOptions = {}, reset = true) {
+        if (minesCount >= width * height) {
+            throw new Error('Too many mines');
+        }
+        this.options = {
+            width, height, tileSize, minesCount,
+            container: (typeof container === 'string') ? document.querySelector(container)! : container
+        };
+
+        this.initSize();
+
+        if (reset) {
+            this.reset();
+        }
+    }
+
+    reset () {
+        this.isOver = false;
+
+        this.initMapData();
+        this.renderMap();
+    }
+
+    private initSize () {
+        // 初始化dom
+        const {width, height, tileSize, container} = this.options;
+        const w = width * tileSize;
+        const h = height * tileSize;
+        this.canvas.width = w * this.dpr;
+        this.canvas.height = h * this.dpr;
+        this.canvas.style.width = `${w}px`;
+        this.canvas.style.height = `${h}px`;
+
+        if (this.canvas.parentElement !== container) {
+            container.appendChild(this.canvas);
+            this.ctx = this.canvas.getContext('2d')!;
+            this.ctx.strokeStyle = '#444';
+            this.ctx.fillStyle = '#444';
+        }
+        this.ctx.textBaseline = 'top';
+        this.ctx.font = `${this.fontSize * this.dpr}px Monospace`;
+
+        const data = this.ctx.measureText('0');
+        const TileSize = tileSize * this.dpr;
+        this.Size = {
+            TileLeft: (TileSize - data.width) / 2,
+            TileTop: (TileSize - data.actualBoundingBoxDescent) / 2,
+            TileSize,
+        };
+
+    }
+
     private onClick (type: GameTileType, x: number, y: number) {
-        console.log(type, x, y);
-        const gameType = this.gameData[x][y];
+        // console.log(type, x, y);
+        const gameType = this.gameData[y][x];
         let newType: GameTileType = gameType;
         switch (gameType) {
             case GameTileType.Hidden:
@@ -166,10 +183,10 @@ export class Map {
             default: break;
         }
         if (newType === gameType) return;
-        this.gameData[x][y] = newType;
+        this.gameData[y][x] = newType;
         
         if (newType === GameTileType.Shown) {
-            const dataType = this.data[x][y];
+            const dataType = this.data[y][x];
 
             if (dataType === TileType.Mine) {
                 this.gameOver();
@@ -179,10 +196,10 @@ export class Map {
                     corner: true,
                     keepGoing: (x, y, type) => {
                         if (type >= 0) {
-                            if (this.gameData[x][y] === GameTileType.Flag) {
+                            if (this.gameData[y][x] === GameTileType.Flag) {
                                 this.updateFlag(false);
                             }
-                            this.gameData[x][y] = GameTileType.Shown;
+                            this.gameData[y][x] = GameTileType.Shown;
                             if (type === 0) {
                                 return true;
                             }
@@ -196,13 +213,12 @@ export class Map {
             this.updateFlag();
         }
 
-
         this.renderMap();
     }
 
     private showAllAround (x: number, y: number) {
         this.traverseTileAround(x, y, (i, j) => {
-            if (this.gameData[i][j] === GameTileType.Hidden) {
+            if (this.gameData[j][i] === GameTileType.Hidden) {
                 this.onClick(GameTileType.Shown, i, j);
             }
         });
@@ -210,7 +226,7 @@ export class Map {
 
     private updateFlag (add = true) {
         add ? this.flagCount ++ : this.flagCount --;
-        console.warn('updateFlag', add, this.flagCount);
+        // console.warn('updateFlag', add, this.flagCount);
         this.checkWin();
     }
 
@@ -218,12 +234,13 @@ export class Map {
         const {width, height} = this.options;
         for (let i = 0; i < width; i++) {
             for (let j = 0; j < height; j++) {
-                if (this.data[i][j] === TileType.Mine)
-                    this.gameData[i][j] = GameTileType.Shown;
+                if (this.data[j][i] === TileType.Mine)
+                    this.gameData[j][i] = GameTileType.Shown;
             }
         }
         this.renderMap();
         confirm({
+            title: 'Tips',
             text: 'Game Over!',
             confirmText: 'Try Again',
             cancelText: 'OK',
@@ -239,12 +256,13 @@ export class Map {
         if (this.flagCount !== this.options.minesCount) return false;
 
         for (const {x, y} of this.minesList) {
-            if (this.gameData[x][y] !== GameTileType.Flag) {
+            if (this.gameData[y][x] !== GameTileType.Flag) {
                 return false;
             }
         }
 
         confirm({
+            title: 'Tips',
             text: 'You Win!',
             confirmText: 'Try Again',
             cancelText: 'OK',
@@ -256,7 +274,7 @@ export class Map {
         const {width, height} = this.options;
         for (let i = 0; i < width; i++) {
             for (let j = 0; j < height; j++) {
-                this.gameData[i][j] = GameTileType.Shown;
+                this.gameData[j][i] = GameTileType.Shown;
             }
         }
         return true;
@@ -286,7 +304,7 @@ export class Map {
             } while (set.has(id));
             set.add(id);
             this.minesList.push({x, y});
-            this.data[x][y] = TileType.Mine;
+            this.data[y][x] = TileType.Mine;
         }
 
         // 初始化其他位置
@@ -296,7 +314,7 @@ export class Map {
             next: (x, y, type) => {
                 if (type !== TileType.Mine) {
                     const mineCount = this.countAroundMines(x, y);
-                    this.data[x][y] = mineCount;
+                    this.data[y][x] = mineCount;
                     // console.log('next', x, y, type, mineCount);
                 }
             }
@@ -329,7 +347,7 @@ export class Map {
 
     private renderTile (x: number, y: number) {
         const {TileLeft, TileTop, TileSize} = this.Size;
-        const gameType = this.gameData[x][y];
+        const gameType = this.gameData[y][x];
         const sx = x * TileSize, sy = y * TileSize;
 
         const renderBg = () => {
@@ -369,7 +387,7 @@ export class Map {
                 this.ctx.fillText(`?`, sx + TileLeft, sy + TileTop);
             };break;
             case GameTileType.Shown: {
-                const type = this.data[x][y];
+                const type = this.data[y][x];
                 if (type === 0) return;
                 if (type === TileType.Mine) {
                 // 画雷
@@ -385,49 +403,52 @@ export class Map {
             };break;
             default: break;
         }
-
     }
 
+    // ! 使用递归会造成调用栈溢出 改成迭代
     private traverseMap ({
-        x, y, keepGoing, next, set = new Set(),
+        x, y, keepGoing, next,
         corner = false,
     }: IPos & {
         keepGoing: (x: number, y: number, type: number)=>boolean,
         next: (x: number, y: number, type: number) => void,
         corner?: boolean,
-        set?: Set<string>,
     }) {
 
-        console.log('traverseMap', x, y);
+        const list: IPos[] = [{x, y}];
+        const set = new Set<string>();
 
-        set.add(`${x}-${y}`);
-
-        next(x, y, this.data[x][y]);
-
-        const directions = [
-            [x, y - 1],
-            [x, y + 1],
-            [x - 1, y],
-            [x + 1, y],
-        ];
-
-        if (corner) {
-            directions.push(
-                [x - 1, y - 1],
-                [x - 1, y + 1],
-                [x + 1, y - 1],
-                [x + 1, y + 1],
-            );
-        }
-
-        for (const [x, y] of directions) {
+        while (true) {
+            const pos = list.shift();
+            if (!pos) break;
+            const {x, y} = pos;
             if (set.has(`${x}-${y}`) || this.outOfMap(x, y)) continue;
-            const type = this.data[x][y];
+
+            set.add(`${x}-${y}`);
+            const type = this.data[y][x];
             if (!keepGoing(x, y, type)) continue;
-            this.traverseMap({x, y, keepGoing, next, corner, set});
+
+            const directions = [
+                {x, y: y - 1},
+                {x, y: y + 1},
+                {x: x - 1, y},
+                {x: x + 1, y},
+            ];
+
+            if (corner) {
+                directions.push(
+                    {x: x - 1, y: y - 1},
+                    {x: x - 1, y: y + 1},
+                    {x: x + 1, y: y - 1},
+                    {x: x + 1, y: y + 1},
+                );
+            }
+
+            list.push(...directions);
+
+            // console.log('traverseMap', x, y, type);
+            next(x, y, this.data[y][x]);
         }
-
-
     }
 
     private outOfMap (x: number, y:number) {
@@ -438,7 +459,9 @@ export class Map {
     private countAroundMines (x: number, y:number): number {
         let sum = 0;
         this.traverseTileAround(x, y, (i, j) => {
-            if (this.data[i][j] === TileType.Mine) sum++;
+            if (this.data[j][i] === TileType.Mine) {
+                sum++;
+            }
         });
         return sum;
     }
@@ -451,5 +474,4 @@ export class Map {
             }
         }
     }
-
 }
